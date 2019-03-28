@@ -1,0 +1,415 @@
+---
+title: "PF 4.1a More mapping work with BIEN and other databases"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+```{r}
+#Students should already have BIEN and ape installed. Other packages to be loaded below should be included in R Studio. If not, install them!
+library(BIEN)
+library(ape) # Package for working with phylogenies in R
+library(maps) # Useful for making quick maps of occurrences
+library(sp) # A package for spatial data
+library(raster)# Another package for spatial data 
+vignette("BIEN")
+```
+
+```{r}
+#Beyond BIEN, we will work today with other databases
+#We will use the "rgbif" package from R-OpenSci to use with GBIF
+#The GBIF acronym stands for Global Biodiversity Information Facility
+#install.packages("rgbif")  
+#or
+#devtools::install_github("ropensci/rgbif")
+library(rgbif)
+```
+
+```{r}
+#There is also a package for I-DIGBIO and I-Naturalist, but even better there is a package for multiple data bases called "spocc"
+#devtools::install_github("ropensci/spocc")
+library(spocc)
+```
+
+## Review: mapping data from BIEN
+
+```{r}
+#Just to review, let's recall how we can download data from BIEN
+#We'll do that for several species in a genus from Latin America, Jungia 
+#We can get occurrence data and also species range models
+
+J_paniculata <- BIEN_occurrence_species(species = "Jungia paniculata")
+J_pauciflora <- BIEN_occurrence_species(species = "Jungia pauciflora")
+J_polita <- BIEN_occurrence_species(species = "Jungia polita")
+
+J_paniculata_rangemap <- BIEN_ranges_load_species("Jungia paniculata")
+J_pauciflora_rangemap <- BIEN_ranges_load_species("Jungia pauciflora")
+J_polita_rangemap <- BIEN_ranges_load_species("Jungia polita")
+
+# Both can be mapped, for example: 
+map('world', fill=T, col="grey", bg="light blue", xlim=c(-85,-35), ylim=c(-40,12))
+  plot(J_pauciflora_rangemap, col="green", add=T)
+```
+
+```{r}
+# Map another Jungia species
+map('world', fill=T, col="grey", bg="light blue", xlim=c(-85,-35),ylim=c(-40,12))
+plot(J_polita_rangemap, col="red", add=T)
+```
+
+```{r}
+# And a third Jungia
+map('world', fill=T, col="grey", bg="light blue", xlim=c(-85,-35),ylim=c(-40,12))
+plot(J_paniculata_rangemap, col="green", add=T)
+```
+
+```{r}
+# Map occurence records for three species of Jungia
+map('world', fill=T, col="grey", bg="light blue", xlim=c(-85,-35),ylim=c(-40,12))
+points(cbind(J_pauciflora$longitude, J_pauciflora$latitude), col="red", pch=20, cex=.8)
+points(cbind(J_paniculata$longitude, J_paniculata$latitude), col="blue", pch=20, cex=.8)
+points(cbind(J_polita$longitude, J_polita$latitude), col="green", pch=20, cex=.8)
+```
+
+## Combining occurrence data and climate data
+
+Mapping occurrence data is informative for discerning species ranges overlap. But could we add  more information, such as how each species overlaps with climate variables?. 
+
+Of course we can, by tapping into the worldclim data base: http://www.worldclim.org/
+
+Peruse their on-line resource, where it's possible to obtain data for past and future climate based on various climate models.
+
+There are a lot of details here, but important to know that the temperature data are in degrees C times 10. The unit for precipitation data is millimeters, and for altitude is meters. 
+
+```{r}
+all.worldclim <- raster::getData("worldclim", res = 10, var = "bio")
+all.worldalt <- raster::getData("worldclim", res = 10, var = "alt")
+plot(all.worldclim[["bio1"]])
+plot(all.worldclim[["bio12"]])
+plot(all.worldalt[["alt"]])
+```
+
+Climate data can be combined with occurrence data downloaded from BIEN, or any geo-coded data.
+
+Below are three examples:
+first with a temperature variable
+next with a precipitation variable
+lastly with topographic elevation as the variable ("altitude")
+
+```{r}
+plot(all.worldclim[["bio1"]])
+points(J_polita[,c("longitude", "latitude")], pch = 24, cex = 0.5)
+plot(all.worldclim[["bio12"]])
+points(J_polita[,c("longitude", "latitude")], pch = 16, cex = 0.5, col = "red")
+plot(all.worldalt[["alt"]])
+points(J_polita[,c("longitude", "latitude")], pch = 16, cex = 0.5, col = "red")
+
+```
+
+
+```{r}
+#To change the spatial extent (i.e. "zoom in"), re-set limits with "xlim" and "ylim" 
+plot(all.worldalt[["alt"]], xlim=c(-10,4),ylim=c(35,45))
+```
+
+
+```{r}
+#Or try the command "crop" with an argument to "extent" 
+#four numbers are required: the xlim numbers first (west and east longitude)
+#followed by the ylim numbers next (south and north latitude)
+peninsula.worldclim <- crop(all.worldclim, extent(-10, 4, 35, 45))
+plot(peninsula.worldclim[["bio1"]])
+#You can get latitudes and longitudes from mP, whether a published paper map or Google maps. 
+```
+
+#### Mini-Exercise #1 
+
+Answer the questions about this peninsula example. Then do your own example from Latin America:
+1. Where in the world is the peninsula mapped above?
+2. Is altitude a climate variable? How do the peninsula maps plotted above support your answer?
+3. Make a South America map with occurrence data for Jungia pauciflora & J. polita and:
+          a. Crop the map to allow discerning more detail in the two ranges
+          b. Also include altitude data or climate data, with occurrence points overlayed.
+
+
+
+```{r}
+#Trimming data to match South American region
+SAmerica.worldalt <- crop(all.worldalt, extent(-75, -50, -30, -15))
+plot(SAmerica.worldalt[["alt"]])
+#Superimposing data
+#Occurrence data overlays
+points(cbind(J_pauciflora$longitude, J_pauciflora$latitude), col="red", pch=20, cex=.8)
+#points(cbind(J_paniculata$longitude, J_paniculata$latitude), col="blue", pch=20, cex=.8)
+points(cbind(J_polita$longitude, J_polita$latitude), col="white", pch=20, cex=.8)
+#plot(SAmerica.worldclim[["alt"]])
+# more graphical parameters here: https://www.statmethods.net/advgraphs/parameters.html
+```
+
+
+
+## More occurrence data
+
+BIEN is not the only database for getting species occurrence data. We've used it because it has already been thoroughly filtered to ensure that it uses correct species names, which it does by using (in the background) an R package called "taxize" that you can install and load and use. 
+
+We're going to explore "taxize" a bit, then use the specific tool "rgbif" and then "spocc"
+
+IMPORTANT: Many of the functions in "taxize" are interactive, and you often will need to interact through the console window (below) rather than work completely in this Notebook. That's true for the example below:
+
+
+
+```{r}
+library("rgbif")
+library("spocc")
+library("taxize")
+#Sometimes you know the species name, but you may be a little unsure of the spelling 
+results=gnr_resolve(names="Heirochloe odorata")
+head(results$matched_name)
+results=gnr_resolve(names="Solanum pimpinelifolia")
+head(results$matched_name)
+results=gnr_resolve(names="Sequoiadendron gigantium")
+head(results$matched_name)
+```
+
+
+```{r}
+#Now that we have the correct spelling, 
+#Another thing to check is whether the name is accepted, or perhaps a synonym
+#Believe it or not, scientific names for organisms have corresponding serial numbers
+#These are called taxonomic serial numbers, and you can look them up with taxize
+#which, in turn, interfaces something called the Integrated Taxonomic Information System 
+#https://www.itis.gov/pdf/faq_itis_tsn.pdf
+#The query is interactive, so look in the console and choose the taxon of interest
+name="Hierochloe odorata"  
+tsn=get_tsn(name, accepted=FALSE)
+tsn
+#The output suggests checking the itis database for the accepted name
+lapply(tsn, itis_acceptname)
+```
+
+```{r}
+#Another potentally useful tasks include looking for higher level taxonomy
+#In other words, how can you tell if a scientific name of a plant is an angiosperm?
+#How can you find out what family it belongs to?
+#A variety of tools are useful and you can look at one species, or multiple.
+#The example below looks at two species. 
+#Potentially you could read in a dataframe from elsewhere (csv file, for example).
+#And you could submit the variable species names are stored
+classification(c("Metasequoia glyptostroboides", "Sequoiadendron giganteum"), db="itis")
+```
+
+```{r}
+#Here's another way to do that, in another database
+tax_name(q="Solanum pimpinellifolium", get="family", db="ncbi")
+```
+
+```{r}
+#If you wanted to know all the genera in a family, or all species in a genus, 
+#then you're referring to taxa "downstream"
+downstream("Cupressaceae", downto="species", db="itis")
+```
+
+```{r}
+#if you just want exactly one taxonomic rank lower, then this is referred to as "children"
+#Here, because Catalogue of Life can and will be queried INTERACTIVELY, 
+#you need to look at the console to choose the correct taxon of interest
+#INTERACTIVE feature will require you to go to the console to scroll and select suggestions
+children("Solanum", db="col")
+```
+
+```{r}
+#Other useful name-related functions in gbif:
+name_lookup(q="Hierochloe odorata")
+name_backbone(name="Metasequoia glyptostroboides")
+name_usage(5937158)
+```
+
+## Querying the GBIF database
+
+To obtain data throught the GBIF database, taxonomy is important, and you might want to work with the package "taxize" before starting, but GBIF also has a lot of its own utilities for taxonomy built into an R package called "rgbif"
+
+And, beyond rgbif, there are other database-specific packages like "rebird" for the Citizen Science app and database E-bird and "rinat" for working with I-Naturalist. 
+
+These were created by a project called R-OpenSci, which also has a package called "spocc" that can query multiple databases at the same time. 
+
+And, generally, data from such databases needs to be "cleaned" in a number of ways, for which you will need a package called "scrubr". These packages for digital natural history and biodiversity science were created and are maintained by Scott Chamberlain, who works for R-OpenSci.
+
+
+Let's first focus just on one of the more comprehensive databases, GBIF. 
+
+```{r}
+library(rgbif)
+#We are going to do a few things here
+#First, if you look in the RGBIF documentation, you can find all the values that can be included with the argument "RecordTypes" -- I put them into a vector with the command below:
+
+
+RecordTypes <- c('HUMAN_OBSERVATION', 'FOSSIL_SPECIMEN', 'LITERATURE', 'LIVING_SPECIMEN', 'MACHINE_OBSERVATION', 'OBSERVATION', 'PRESERVED_SPECIMEN', 'UNKNOWN')
+RecordTypes
+
+#There are other things you can do, like looking for records from a given year, which could obviously be combined with Record Types. 
+
+#You see that we have eight types of records. 
+#Now, we could look at all eight of these one by one using this command
+obs <- occ_count(basisOfRecord = 'HUMAN_OBSERVATION')
+obs
+
+```
+
+
+
+```{r}
+#Or, we could use a for loop, which will re-iterate the same command over and over again but each time changing the input to the command.
+
+#In R, loops starts with an open bracket sign, 
+#Then, the command must define where to find the values in each iteration of the loop
+#An example loop is in the chunk below, using the vector RecordTypes, defined above
+
+#Look up and get counts for each record type
+for (i in RecordTypes) {
+type=i
+obs <- occ_count(basisOfRecord = i)
+print(c(type, obs))
+}
+```
+
+
+
+
+Here's another example of a loop, counting records from different years. 
+
+What does the output tell us about dates in the GBIF database?  
+
+```{r}
+#Here are all the years I want to look up
+Years <- c("1599", "1600", "1601", "1619", "1659", "1699", "1700", "1701", "1719", "1759", "1799", "1800", "1801", "1809", "1819", "1829", "1839", "1849", "1859", "1869", "1879", "1889", "1899", "1900", "1903", "1953", "2000", "2003", "2017", "2018")
+#Here, I'm making an empty vector for all the occurrence counts that I get out of 
+obs <- NULL
+#Now, starting a "for loop" to query  GBIF to count  occurrences in each of the years
+for (i in Years) {
+obs[i] <- occ_count(year=i)
+}
+#loop is finished
+obs
+#This gives output awkwardly, as  two vectors, reading across two rows
+(obs <- as.data.frame(obs))
+#This gives output in a better format: dataframe puts years in a left-most column as Row Names, and then in the next column each cell as occurrence counts for each year, reading down.
+```
+
+
+Let's go back to our peninsula, which is a hotspot of endemism for many plant and animal species. Remember to load the R Package "rgbif".
+
+```{r}
+library(rgbif)
+Spergularia <- occ_search(scientificName="Spergularia melanocaulos", limit=1000)
+#head(Spergularia)
+colnames(Spergularia$data)
+#Spergularia$data$genus
+#Spergularia$data$species
+unique(Spergularia$data$genus)
+unique(Spergularia$data$species)
+```
+
+
+Very good habit to trim the default data downloaded to be smaller, and make sure it's a data frame. Also make sure you have only complete cases because some of the code below will choke if there are missing values. Also, sometimes the same individual plant/population will be recorded at multiples times in the same location, which is why you may want to run the "unique" commands. The "dim" command helps you look at how you trimmed down the file.
+
+
+```{r}
+#Choose just three variables
+Spergularia.small <- subset(Spergularia$data, select=c("species", "decimalLatitude",
+"decimalLongitude"))
+#Rename the columns, make sure you're working with a dataframe
+colnames(Spergularia.small) <- c("species", "lat", "lon")
+Spergularia.small <- as.data.frame(Spergularia.small)
+head(Spergularia.small)
+tail(Spergularia.small)
+#There are often occurrences with missing values to remove 
+dim(Spergularia.small)
+Spergularia.small <- Spergularia.small[complete.cases(Spergularia.small),]
+dim(Spergularia.small)
+#Also there may be duplicates, the same plant or population observed twice
+#Or uploaded twice into the database
+Spergularia.u <- unique(Spergularia.small)
+dim(Spergularia.u)
+```
+
+
+
+#Working instead with the package "spocc"
+
+This package is great for working with GBIF or other databases. 
+
+```{r}
+#We can look up a species
+DawnRedwood <- occ(q="Metasequoia glyptostroboides", from="gbif", limit=50)
+DawnRedwood
+#By default spocc will return a sample of just 500 observations
+#Here, to speed things up during class, I've further limited to just 50 records
+#Even though we can see there are 1688 occurrences in the database
+#Also, looking in "Environment" in the upper right, we can see that 
+#this is not a dataframe. It is a new type of object "Large occdat" which has 10 elements
+#One of those elements is data
+#We can ask for at data using this format
+DawnRedwood.dat <- (DawnRedwood$gbif$data)
+head(DawnRedwood.dat)
+#But that gives ALL the fields. 
+#A nifty function called occ2df gives just some essential data
+#It's nifty that the package "spocc" converts this huge result into a slimmed down dataframe
+DawnRedwood.df <- occ2df(DawnRedwood)
+DawnRedwood.df
+#You can see that there are some occurrence records that lack longitude and latitude
+#Then you can exclude them
+dim(DawnRedwood.df)
+DawnRedwood.df <- DawnRedwood.df[complete.cases(DawnRedwood.df),]
+dim(DawnRedwood.df)
+DawnRedwood.df
+#You should see that six of our 50 lines were left out
+```
+
+```{r}
+#Check out idigbio
+GiantRedwood.digbio <- occ(q="Sequoia giganteum", from="idigbio", limit=50)
+GiantRedwood.digbio <- occ2df(GiantRedwood.digbio)
+GiantRedwood.digbio
+GiantRedwood.digbio <- GiantRedwood.digbio[complete.cases(GiantRedwood.digbio),]
+dim(GiantRedwood.digbio)
+GiantRedwood.digbio
+```
+
+
+
+## Mini-exercise #2
+
+Let's build and combine your new skills in looking up species occurrence data with what we learned about mapping. 
+
+Going back to our peninsula, here are a bunch of species that are endemic to that area.
+
+Spergularia melanocaulos
+Petrocoptis grandiflora
+Spergula viscosa
+Minuartia cerastiifolia
+Minuartia recurva
+Petrocoptis hispanica
+Petrocoptis pyrenaica
+
+Choose any two, and do the following:
+
+WORK WITH TAXISE
+1. Look up - are they accepted names or are they synonyms?
+2. Look up the two plant taxa. Are they both angiosperms?
+3. Angiosperm or otherwise, what plant family do they belong to?
+4. For at least one genus, look up all the species in that genus.
+5. For one species, look up to see if there are subspecies or other infraspecific forms.
+
+WORK WITH RGBIF OR SPOCC
+6. For both, search and download species occurrence data; prepare as a data-frame
+7. Clean-up the data-frame:  remove occurrences with missing data and duplicates
+
+
+WORK WITH OCCURRENCE DATA, WORLDCLIM DATA AND MAPS
+8. Map occurrence data with a climate variable for one species on the peninsula
+9. Also map that species with climate variables on a world map or European map. Are you convinced that the species is endemic to this peninsula?
+10. Returning to your results for #4 above, find another species with a range outside of the  peninsula. Download occurrence data and map on a world map. 
+11. Then re-map on an appropriately cropped map.
+
+ONE LAST THING
+12. Don't forget to identify the peninsula that we are working with!

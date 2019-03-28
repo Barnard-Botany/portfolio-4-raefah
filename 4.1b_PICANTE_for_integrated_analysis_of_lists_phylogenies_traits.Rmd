@@ -1,0 +1,287 @@
+---
+title: "Combining Traits, Community Diversity, and Phylogeny with PICANTE"
+output: html_notebook
+---
+
+## Integrating phylogeny and ecology
+
+In our first lab, we worked with BIEN and among other features, we worked with its trait data. Specifically, you were able to make comparisons of trait variation among related species. 
+
+In our second digital lab, we worked with VEGAN and learned about how it can quantify and analyze species biodiversity using things like a Shannon index, Jaccard Index, or Bray-Curtis index. 
+
+In our third digital lab, we worked with APE to prepare and read tree data, to plot trees, and to think about how trees can show common ancestry, and stretches of time involved for an ancestor to diversify, and also at how long taxa can persist in time. 
+
+While today's fourth lab has focused quite a bit on working with databases and mapping, I also want to show you how the previous three labs can be integrated conceptually and, operationally, using an R package called Picante. I'm just going to show you the tip of the iceberg, but these tools might be super-useful to those working on projects about local tree biodiversity (in and near NYC) and also to those working on projects about medicinal plants. 
+
+Picante should come loaded with base R, but if it doesn't it can be installed routinely (from CRAN repository).
+
+```{r}
+#install.packages("picante")
+library(picante)
+```
+
+
+There is a useful sample data set in the package called phylocom that we should explore:
+
+```{r}
+data(phylocom)
+names(phylocom)
+head(phylocom)
+```
+Let's look at how many taxa are in the tree and in the trait data, and compare that with the number of taxa in the abundance matrix ("comm").
+
+Since there are more taxa in the phylogeny than in the community, we can actually "prune" the tree so that it matches the list in our community data. 
+
+```{r}
+#First, let's rename the phylogeny part of our sample data
+#And also rename the community abundance matrix part of our sample data
+phy <- phylocom$phylo
+comm <- phylocom$sample
+traits <- phylocom$traits
+#Now let's prune phy so that its taxa exactly match the taxa in comm
+prunedphy <- prune.sample(comm, phy)
+prunedphy
+plot(prunedphy)
+```
+
+Once that's done, we can do something right away to make a point about what we're doing. 
+
+```{r}
+#This first line sets up a grid for mapping multiple phylogenies on one panel
+#This is a general command that could be used almost anywhere
+#We'll use it below to set up a 2,2 grid instead of the 2,3 grid used here
+par(mfrow = c(2, 3))
+#Now we are going to start a loop. 
+#Here, i= 6 because there are six samples in six rows of the community matrix.
+#The loop does the same thing i times, meaning 6 times 
+#Each time through the loop, something different is being added to the tip labels on the plot command based on the six samples (which are in the six rows of our abundance matrix)
+
+for (i in row.names(comm)) {
+plot(prunedphy, show.tip.label = FALSE, main = i)
+tiplabels(tip = which(prunedphy$tip.label %in% names(which(comm [i, ] > 0))), pch=22, cex=2)
+}
+```
+
+
+```{r}
+pd.result <- pd(comm, phy, include.root=TRUE)
+pd.result
+```
+
+The column listing SR is species richness. All the communities have the same species richness, eight species. 
+
+The column listing PD is an index known as Faith's Phylogenetic Diversity index. 
+
+SR and PD are not independent of each other, similar to Shannon's index or Simpson's index in VEGAN. There will be a higher value in communities with higher species richness. 
+
+Note that this index does not have to be for plant community abundance data. 
+
+Any lists of plant taxa, compiled can serve as a starting point. Individual lists would need to be compiled into one, and then converted into a presence-absence or abundance matrix. The "master list" across all lists then would need to be phylogenized. 
+
+
+With plant community data, there is sometimes also an interest in what traits might be uniform or different among the taxa in the community, whether because of convergence/plasticity or because of shared ancestry. For this reason, PICANTE has some trait capabilities. 
+
+```{r}
+par(mfrow = c(2, 2))
+for (i in names(traits)) {
+plot(prunedphy, show.tip.label = FALSE, main = i)
+tiplabels(pch = 22, col = traits[, i] + 1, bg = traits[, i] + 1, cex = 1.5)
+}
+```
+
+
+
+## Going through concepts in Picante a second time
+
+So, we were working with just a sample data set, but before we charge off and try to assemble our own data set, let's think through another sample data set that we'll create ourselves. 
+
+Actually, we'll piece it together from examples used previously in lecture. 
+
+Most recently, we had lectures and digital lab focusing on phylogenetic trees and tree thinking.
+
+```{r}
+#Here is the phylogeny from lecture about Phylogenies
+#Remember that you have to read the Newick as one big character string. 
+#Then you have to read that using the "read.tree" function, creating a phylo object
+#That created phylo-object, called tr_lectureFULL in this example, can then be plotted
+newick_lecture = "(((((A,B),(C,D)),(((E,F),G))),(H)),((((I,J),K),(L,M)),((N,0),(P,Q))));"
+tr_lectureFULL = read.tree(text=newick_lecture)
+plot(tr_lectureFULL, type="cladogram", direction=c("upwards"))
+```
+
+
+Although the "read.tree" command in APE can create a phylo object without tree lengths,  such a tree will not work with PICANTE. Lengths need to be part of the phylogeny (and the R phylogeny object that is created using the "read.tree" command). If lengths are unavailable, they can all be entered as 1.
+
+```{r}
+newick_one_lengths = "((((((((A:1,B:1):1,((C:1,D:1):1):1):1):1,(((E:1,F:1):1,G:1):1):1):1):1,H:1):1,((((I:1,J:1):1,K:1):1,(L:1,M:1):1):1,((N:1,O:1):1,(P:1,Q:1):1):1):1):1);"
+tr_one_lengths=read.tree(text=newick_one_lengths)
+plot(tr_one_lengths, type="fan", direction="upwards")
+```
+
+In addition to looking at how lengths work in Newick and on a plot, also look at the sub-clade relationships within this phylogeny. There is the sub-clade ABCDEFG with a sister taxon H. Then there is another sub-clade IJKLMNOPQ
+
+```{r}
+newick_full_lengths = "((((((((A:7,B:7):5,((C:9,D:9):2):1):1):2,(((E:8,F:8):1,G:9):4):2):3):1,H:19):2, ((((I:12,J:12):2,K:14):3,(L:16,M:16):1):2,((N:13,O:13):3,(P:14,Q:14):2):3):2):1);"
+tr_full_lengths = read.tree(text=newick_full_lengths)
+plot(tr_full_lengths, type="phylogram", show.node.label=TRUE)
+```
+
+
+Previously, during Digital Lab 2, we had created short lists of species with abundance data and then compiled them into an abundance matrix. It should be in the directory that you pulled from GitHub, so you should be able to read it with the command below. 
+
+See the important note below about row.names and converting this data.frame to a matrix.
+
+
+```{r}
+abundance <- read.csv("matrify_EXAMPLE.csv", row.names = 1)
+#Notice that last detail in reading the file. Otherwise you'll get error messages.
+#The format required in VEGAN and PICANTE is for the first row to be the names of samples
+#This first row is not a variable, and should not be read as one
+abundance
+```
+
+
+Be sure not to skip over this important step with comments!
+
+```{r}
+#Also, this was read as a dataframe, but for graphing (below) it needs to be a matrix
+#It can be converted from dataframe to matrix because all the variables are homogenous
+#(They are all numeric values)
+abundance <- as.matrix(abundance)
+dim(abundance)
+```
+
+As we did above, we need to prune the phylogeny to match the list-wide species list. 
+
+One potentially helpful way to think about this is that the phylogeny is for the gamma diversity (whole sample) and then we will be able to situate alpha diversity (within one sample) into this phylogenetic framework. 
+
+```{r}
+#These samples do not exactly match the phylogeny, but remember we can prune
+#and remove taxon "I" and "O" and "P"
+plot(tr_full_lengths)
+prunedAB <- prune.sample(abundance, tr_full_lengths)
+plot(prunedAB)
+```
+
+```{r}
+#This first line sets up a grid for mapping multiple phylogenies on one panel
+#This is a general command that could be used almost anywhere
+#We used it above to set up a 2,3 grid. Here, instead, we set up a 2,2 grid for four plots.
+par(mfrow = c(2, 2))
+#Now we are going to start a loop, so that we do the same thing four times, but each first, second, third and fourth times through the loop, something different is being added to the tip labels on the plot command based on the four samples (which are in the four rows of our abundance matrix)
+for (i in row.names(abundance)) {
+plot(prunedAB, show.tip.label = FALSE, main = i)
+  tiplabels(tip = which(prunedAB$tip.label %in% names(which(abundance [i, ] > 0))), pch=19, cex=1)
+}
+```
+
+
+Visually, it's clear that sample "five"" is quite different as compared to "one" and "three" and "two" which have taxa confined to just one sub-clade within the tree. In contrast, "five" has taxa from both sub-clades in the overall tree. Above, we looked at the metric known as Faith's phylogenetic diversity (PD) and will now do that for our new sample:
+
+```{r}
+pd.EXAMPLE <- pd(abundance, prunedAB, include.root=TRUE)
+pd.EXAMPLE
+```
+
+
+Let's expand on what we did above, adding two more metrics, MPD and MNTD. 
+
+The mean pairwise distance (MPD) and the mean nearest taxon distance (MNTD) are two other ways to measure whether the taxa in a sample are more related than would be expected at random (or less related than expected.
+
+```{r}
+#MPD requires generating a random model and comparing actual distances to random distances
+phydist <- cophenetic(tr_full_lengths)
+ses.mpd.result <- ses.mpd(abundance, phydist, null.model = "taxa.labels",
+abundance.weighted = FALSE, runs = 99)
+ses.mpd.result
+```
+
+```{r}
+#MNTD similarly requires a random model and comparing actual distances to random distances
+phydist <- cophenetic(tr_full_lengths)
+ses.mntd.result <- ses.mntd(abundance, phydist, null.model = "taxa.labels",
+abundance.weighted = FALSE, runs = 99)
+ses.mntd.result
+```
+
+
+The measures above are useful for looking at alpha diversity. 
+
+What about beta diversity? Is there a typical amount that one sample differs from another sample? Are all pair-wise comparisons about the same? Or are some more extreme? 
+
+With VEGAN, we did this by using a Jaccard or Bray-Curtis index. Now we can use measures that account for phylogenetic relatedness. Check out this community distance measure from PICANTE.
+
+```{r}
+comdist.result <- comdist(abundance, phydist)
+comdist.result
+```
+
+
+
+
+Lastly, we can also look at patterns of traits on phylogenies, as these may help to provide a mechanistic reason why a community is assembled from species that are phylogenetically "clumped" (i.e., more related than would be expected at random, because being related makes them more likely to persist in the community) or phylogenetically "overdispersed" (i.e., less related than random expectation, because they have more diverse traits among species)
+
+```{r}
+traitsEX=read.csv("traitEXAMPLE.csv", row.names = 1)
+traitsEX
+```
+
+
+Now let's plot the size traits and binary/discrete traits (either have or do not have a trait).
+
+```{r}
+par(mfrow = c(2, 2))
+for (i in names(traitsEX)) {
+plot(prunedAB, show.tip.label = FALSE, main = i)
+tiplabels(pch = 22, col = traitsEX[, i] + 1, bg = traitsEX[, i] + 1, cex = 1.5)
+}
+```
+
+The trait labeled as "traitINERTIA" seems to correspond to two major clades (with infrequent exceptions) compared to "traitINNO" which doesn't. For the size traits, this simple technique is a little harder to discern, but we could imagine spending a lot more time to refine our color coding, but bear in mind that size traits in plants can have a lot of environmental plasticity, which also makes it hard to analyze them for phylogenetic signal. 
+
+There's already too much in this course and in these digital labs, so I'm not going to go into further depth about using Picante for phylogenetic trait analysis, but it's a cool idea, right? These days, people doing trait analysis no longer use Picante, opting instead to work with  another package called "phytools".
+
+## Mini-exercise 3
+
+After using all the code above and perusing results, review what you've done with the PICANTE package by going back and making comparisons with the VEGAN package, which doesn't ever consider phylogeny. Simply work with the fake communities created: one, three, two and five.
+
+Then, leave fake communities behind! Do one of the following. You will need to write proper code and show results (with annotations) of your work in this notebook or create a new notebook: 
+
+A. Based on six different recipes or menu items, create lists of at least 10 types of plants that are ingredients. For each, list the 10 most critical plant species that you would need to purchase as ingredients to prepare these foods. For simplicity, list the same number of plant species for each. 
+
+B. Different municipal areas maintain street trees as part of the urban environment. Many publish lists of the most frequent street trees; suggestions below. For six different municipalities, get a list of trees. Have the same number of trees on each list (e.g., ten species each).  (Resources below to give a head-start with this)
+
+Compile your six lists into an abundance matrix. If it's too hard to get abundances, compile presence/absence matrix. Be sure to write the file and push it back to the GitHub repository when you complete this assignment (revisit Digital Lab 2 skills). 
+
+The compiled matrix has a master list of all plant species across all six lists. Resolve this master list for proper taxonomy -- each plant species should have an accepted scientific species name. (Using taxize if possible.)
+
+Phylogenize (revisiting skills from Digital Lab 3). Again, it's a good idea to write the tree you create as a file; you then can and should push back to GitHub as you submit your assignment. 
+
+Create six different annotations of the phylogeny, differing by showing the list-specific taxa. 
+Figure out both Shannon or Simpson diversity indices, and PD (Phylogenetic Diversity). Comment on how they compare. Figure out one additional analysis from today's lab, your choice. 
+
+
+Resources for the tree project:
+
+Providence (p. 13-14)
+http://www.providenceri.gov/wp-content/uploads/2016/02/State-of-Providences-Urban-Forest-2008.pdf
+Pittsburgh (p.11)
+https://waterlandlife.org/wp-content/uploads/2018/02/i-Tree-Eco-Pittsburgh.pdf
+San Francisco
+https://www.fuf.net/2013/10/san-franciscos-top-ten-street-trees/
+Vancouver
+https://vancouver.ca/files/cov/Urban-Forest-Strategy-Draft.pdf
+Chicago
+https://www.chicago.gov/content/dam/city/depts/streets/supp_info/Forestry/2012TreeoftheYear8x11Brochure.pdf
+Glasgow
+https://www.forestresearch.gov.uk/documents/1301/FR_Doick_GlasgowItreereportFINAL.pdf
+Madison, WI
+https://dnr.wi.gov/topic/UrbanForests/documents/vol17no2.pdf
+Toronto (see p. 43)
+https://www.itreetools.org/resources/reports/Toronto_Every_Tree_Counts.pdf
+NYC, City-wide and also broken down by Boroughs 
+http://media.nycgovparks.org/images/web/TreesCount/Index.html
+
+
+Interesting additional resource - trees for 2050
+https://www.chicagobotanic.org/blog/plant_science_conservation/trees_2050
