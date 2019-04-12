@@ -1,0 +1,238 @@
+---
+title: "Portfolio 4 Exercises"
+output: html_notebook
+---
+
+```{r}
+library(BIEN)
+library(ape) # Package for working with phylogenies in R
+library(maps) # Useful for making quick maps of occurrences
+library(sp) # A package for spatial data
+library(raster)# Another package for spatial data 
+vignette("BIEN")
+library(rgbif)
+library(spocc)
+```
+
+#### Mini-Exercise #1 
+
+Answer the questions about this peninsula example. Then do your own example from Latin America:
+
+1. Where in the world is the peninsula mapped above?
+   It's in the Iberian peninsula. I looked up the longitude and latitude on Google maps.
+   
+2. Is altitude a climate variable? How do the peninsula maps plotted above support your answer?
+   It's not a climate variable. The peninsula maps that are plotted above deal with extremes of climate only. The all.worldalt map deals with altitude.
+   
+3. Make a South America map with occurrence data for Jungia pauciflora & J. polita and:
+          a. Crop the map to allow discerning more detail in the two ranges.
+          b. Also include altitude data or climate data, with occurrence points overlayed.
+
+```{r}
+# getting occurrence data for Jungia pauciflora and Jungia polita
+J_pauciflora <- BIEN_occurrence_species(species = "Jungia pauciflora")
+J_polita <- BIEN_occurrence_species(species = "Jungia polita")
+J_pauciflora
+J_polita
+```
+
+
+```{r}
+#Trimming data to match South American region
+all.worldalt <- raster::getData("worldclim", res = 10, var = "alt")
+SAmerica.worldalt <- crop(all.worldalt, extent(-75, -50, -30, -15))
+plot(SAmerica.worldalt[["alt"]])
+#Superimposing data
+#Occurrence data overlays
+points(cbind(J_pauciflora$longitude, J_pauciflora$latitude), col="red", pch=20, cex=.8)
+points(cbind(J_polita$longitude, J_polita$latitude), col="white", pch=20, cex=.8)
+```
+
+
+## Mini-exercise #2
+
+Let's build and combine your new skills in looking up species occurrence data with what we learned about mapping. 
+
+Going back to our peninsula, here are a bunch of species that are endemic to that area.
+
+Spergularia melanocaulos
+Petrocoptis grandiflora
+Spergula viscosa
+Minuartia cerastiifolia
+Minuartia recurva
+Petrocoptis hispanica
+Petrocoptis pyrenaica
+
+Choose any two, and do the following:
+
+WORK WITH TAXISE
+1. Look up - are they accepted names or are they synonyms?
+Minuartia recurva is the accepted name for the species. Petrocoptis pyrenaica is also the accepted name for the species.
+
+2. Look up the two plant taxa. Are they both angiosperms?
+Minuartia recurva (family: Caryophyllaceae) and Petrocoptis pyrenaica (class: Angiospermae, family: Caryophyllaceae) are both angiosperms.
+
+3. Angiosperm or otherwise, what plant family do they belong to?
+They both belong to the Caryophyllaceae family
+
+4. For at least one genus, look up all the species in that genus.
+```{r}
+library(taxize)
+species <- children("Minuartia", db="col")
+species
+```
+
+
+5. For one species, look up to see if there are subspecies or other infraspecific forms.
+
+```{r}
+subspecies <- tax_name(q="Minuartia recurva", get="subspecies", db="ncbi")
+subspecies
+```
+
+
+WORK WITH RGBIF OR SPOCC
+6. For both, search and download species occurrence data; prepare as a data-frame
+7. Clean-up the data-frame:  remove occurrences with missing data and duplicates
+
+```{r}
+# steps 6 and 7
+
+M_recurva <- occ(q="Minuartia recurva", from="gbif", limit=500) # getting occurrence data
+M_recurva_data <- (M_recurva$gbif$data)
+M_recurva_df <- occ2df(M_recurva) # converting into dataframe
+M_recurva_df <- M_recurva_df[complete.cases(M_recurva_df),] # cleaning dataframe
+M_recurva_df
+
+P_pyrenaica <- occ(q="Petrocoptis pyrenaica", from="gbif", limit=500) # getting occurrence data
+P_pyrenaica_data <- (P_pyrenaica$gbif$data)
+P_pyrenaica_df <- occ2df(P_pyrenaica) # converting into dataframe
+P_pyrenaica_df <- P_pyrenaica_df[complete.cases(P_pyrenaica_df),] # cleaning dataframe
+P_pyrenaica_df
+```
+
+
+WORK WITH OCCURRENCE DATA, WORLDCLIM DATA AND MAPS
+8. Map occurrence data with a climate variable for one species on the peninsula
+
+```{r}
+# using the Minuartia recurva species
+all.worldclim <- raster::getData("worldclim", res = 10, var = "bio")
+peninsula.worldclim <- crop(all.worldclim, extent(-20, 50, 20, 60))
+plot(peninsula.worldclim[["bio1"]])
+points(cbind(M_recurva_df$longitude, M_recurva_df$latitude), col="red", pch=20, cex=.8)
+```
+
+9. Also map that species with climate variables on a world map or European map. Are you convinced that the species is endemic to this peninsula?
+
+```{r}
+# using the Minuartia recurva species
+all.worldclim <- raster::getData("worldclim", res = 10, var = "bio")
+peninsula.worldclim <- crop(all.worldclim, extent(-20, 50, 20, 60))
+plot(peninsula.worldclim[["bio12"]])
+points(cbind(M_recurva_df$longitude, M_recurva_df$latitude), col="red", pch=20, cex=.8)
+```
+
+The Minuartia recurva species is on the Iberian peninsula. ????*****
+I think it is endemic to the peninsula because all of the occurrence is there??????****
+
+10. Returning to your results for #4 above, find another species with a range outside of the  peninsula. Download occurrence data and map on a world map. 
+
+First, let's get the occurrence data and format the data frame properly:
+```{r}
+# using the Minuartia californica species
+mc <- occ(q="Minuartia californica", from="gbif", limit=500) # getting occurrence data
+mc_data <- (mc$gbif$data)
+mc_df <- occ2df(mc) # converting into dataframe
+mc_df <- mc_df[complete.cases(mc_df),] # cleaning dataframe
+mc_df
+```
+
+Now, we can map the occurrence data on a world map
+```{r}
+all.worldclim <- raster::getData("worldclim", res = 10, var = "bio")
+# peninsula.worldclim <- crop(all.worldclim, extent(-20, 50, 20, 60))
+plot(all.worldclim[["bio1"]])
+points(cbind(mc_df$longitude, mc_df$latitude), col="red", pch=20, cex=.8)
+```
+
+11. Then re-map on an appropriately cropped map.
+
+```{r}
+all.worldclim <- raster::getData("worldclim", res = 10, var = "bio")
+peninsula.worldclim <- crop(all.worldclim, extent(-150, -100, 15, 50))
+plot(peninsula.worldclim[["bio1"]])
+points(cbind(mc_df$longitude, mc_df$latitude), col="red", pch=20, cex=.8)
+```
+
+This is on the Baja California Peninsula.
+
+ONE LAST THING
+12. Don't forget to identify the peninsula that we are working with!
+
+
+## Mini-exercise 3
+
+```{r}
+library(picante)
+library(vegan)
+install.packages("devtools")
+devtools::install_github("ropensci/brranching")
+library("ape")
+library("brranching")
+library(BIEN)
+library(plyr)
+library(labdsv)
+```
+
+
+After using all the code above and perusing results, review what you've done with the PICANTE package by going back and making comparisons with the VEGAN package, which doesn't ever consider phylogeny. Simply work with the fake communities created: one, three, two and five.
+
+```{r}
+abundance <- read.csv("matrify_EXAMPLE.csv", row.names = 1)
+abundance <- as.matrix(abundance)
+abundance
+```
+
+
+Then, leave fake communities behind! Do one of the following. You will need to write proper code and show results (with annotations) of your work in this notebook or create a new notebook: 
+
+B. Different municipal areas maintain street trees as part of the urban environment. Many publish lists of the most frequent street trees; suggestions below. For six different municipalities, get a list of trees. Have the same number of trees on each list (e.g., ten species each).  (Resources below to give a head-start with this)
+
+```{r}
+spec = read.csv("species.csv")
+spec <- as.matrix(spec)
+spec
+
+# for some reason, I can't properly rbind all the different lists I have.
+# san_fran <- read.csv("san_francisco.csv", row.names = 1)
+# san_fran <- data.frame("san_francisco", san_fran)
+# 
+# pitts <- read.csv("pittsburgh.csv", row.names = 1)
+# pitts <- data.frame("pittsburgh", pitts)
+# 
+# ab=rbind(san_fran, pitts)
+# ab
+```
+
+
+Compile your six lists into an abundance matrix. If it's too hard to get abundances, compile presence/absence matrix. Be sure to write the file and push it back to the GitHub repository when you complete this assignment (revisit Digital Lab 2 skills). 
+
+The compiled matrix has a master list of all plant species across all six lists. Resolve this master list for proper taxonomy -- each plant species should have an accepted scientific species name. (Using taxize if possible.)
+
+Phylogenize (revisiting skills from Digital Lab 3). Again, it's a good idea to write the tree you create as a file; you then can and should push back to GitHub as you submit your assignment. 
+
+```{r}
+tree_phylomatic_EG1 <- phylomatic(taxa = spec, get = "POST")
+plot(tree_phylomatic_EG1, no.margin = TRUE, type="phylogram")
+newick_fn = "tree_phylomatic_EG1"
+write.tree(tree_phylomatic_EG1, file=newick_fn)
+```
+
+Create six different annotations of the phylogeny, differing by showing the list-specific taxa. 
+Figure out both Shannon or Simpson diversity indices, and PD (Phylogenetic Diversity). Comment on how they compare. Figure out one additional analysis from today's lab, your choice. 
+
+
+I got really confused about how to do exercise 3. I'm planning on going to OH and working through this. 
+
+
