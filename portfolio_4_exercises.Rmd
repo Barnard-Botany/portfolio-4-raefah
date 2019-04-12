@@ -133,8 +133,7 @@ plot(peninsula.worldclim[["bio12"]])
 points(cbind(M_recurva_df$longitude, M_recurva_df$latitude), col="red", pch=20, cex=.8)
 ```
 
-The Minuartia recurva species is on the Iberian peninsula. ????*****
-I think it is endemic to the peninsula because all of the occurrence is there??????****
+The Minuartia recurva species is located in the Iberian peninsula. I think it is endemic to the peninsula because all of the occurrence is there. 
 
 10. Returning to your results for #4 above, find another species with a range outside of the  peninsula. Download occurrence data and map on a world map. 
 
